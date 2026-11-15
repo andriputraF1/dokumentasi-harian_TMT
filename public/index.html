@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pembuat Foto Dokumentasi Pembelajaran Harian</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root { --bg:#f4f5f7; --card:#fff; --text:#1c1e21; --muted:#6b7280; --line:#d9dce1; --accent:#1d4ed8; --danger:#b91c1c; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--text); }
+  header { background:#111; color:#fff; padding:14px 24px; font-size:18px; font-weight:600; }
+  main { max-width:1200px; margin:20px auto; padding:0 16px; display:grid; grid-template-columns:minmax(320px,1fr) minmax(320px,1fr); gap:20px; align-items:start; }
+  @media (max-width:900px){ main{grid-template-columns:1fr;} }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:16px; }
+  .card h2 { margin:0 0 12px; font-size:15px; }
+  label { display:block; font-size:13px; color:var(--muted); margin:10px 0 4px; }
+  input[type=text], input[type=number], input[type=date], select { width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:6px; font-size:14px; background:#fff; }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  button { cursor:pointer; border:0; border-radius:6px; padding:10px 16px; font-size:14px; font-weight:600; }
+  button:disabled { opacity:.5; cursor:default; }
+  .primary { background:var(--accent); color:#fff; }
+  .secondary { background:#e5e7eb; color:#111; }
+  .danger { background:#fee2e2; color:var(--danger); }
+  .photos { display:grid; gap:8px; margin-top:10px; }
+  .photo { display:grid; grid-template-columns:70px 1fr auto; gap:10px; align-items:center; border:1px solid var(--line); border-radius:8px; padding:6px; }
+  .photo img { width:70px; height:50px; object-fit:cover; border-radius:4px; }
+  .photo .name { font-size:12px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .photo select { margin-top:4px; }
+  .photo .mv button { padding:4px 8px; margin-left:2px; }
+  .count { font-size:12px; color:var(--muted); margin-top:6px; }
+  .count.bad { color:var(--danger); font-weight:600; }
+  .actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
+  iframe { width:100%; height:700px; border:1px solid var(--line); border-radius:8px; background:#fff; }
+  .hint { font-size:12px; color:var(--muted); margin-top:6px; }
+  #msg { font-size:13px; margin-top:8px; min-height:18px; }
+  #msg.err { color:var(--danger); }
+  #msg.ok { color:#15803d; }
+  a.btn { text-decoration:none; display:inline-block; }
+  .badge { display:inline-block; font-size:12px; background:#eef2ff; color:var(--accent); padding:2px 8px; border-radius:999px; margin-left:6px; }
+  .hist { display:grid; gap:6px; }
+  .hist-item { display:flex; align-items:center; justify-content:space-between; gap:8px; border:1px solid var(--line); border-radius:8px; padding:8px 10px; }
+  .hist-item.active { border-color:var(--accent); background:#f5f8ff; }
+  .hist-item .info { font-size:14px; }
+  .hist-item .info small { display:block; color:var(--muted); font-size:12px; }
+  .hist-item button { padding:6px 10px; font-size:13px; }
+  .empty { font-size:13px; color:var(--muted); }
+  .watermark { position:fixed; right:14px; bottom:10px; z-index:1000; font-size:13px; font-weight:600; color:#111; opacity:.45; background:rgba(255,255,255,.7); padding:4px 10px; border-radius:999px; pointer-events:none; user-select:none; }
+  body { padding-bottom:50px; }
+
+  /* ===== Modern UI refresh (visual only; existing IDs and JavaScript remain unchanged) ===== */
+  :root {
+    --bg: #f3f6fc;
+    --card: rgba(255,255,255,.94);
+    --text: #172033;
+    --muted: #718096;
+    --line: #e4eaf3;
+    --accent: #315ee8;
+    --danger: #c53030;
+    --shadow: 0 14px 38px rgba(31, 52, 94, .07);
+    --shadow-hover: 0 18px 42px rgba(31, 52, 94, .12);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    padding-bottom: 64px;
+    color: var(--text);
+    background:
+      radial-gradient(ellipse at 8% 0%, rgba(74, 112, 242, .13), transparent 34rem),
+      radial-gradient(ellipse at 95% 12%, rgba(26, 183, 166, .10), transparent 30rem),
+      var(--bg);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  header {
+    position: relative;
+    overflow: hidden;
+    padding: 25px max(24px, calc((100vw - 1200px) / 2));
+    color: #fff;
+    font-size: clamp(18px, 2vw, 22px);
+    font-weight: 750;
+    letter-spacing: -.45px;
+    background: linear-gradient(115deg, #172554 0%, #2447a8 52%, #315ee8 100%);
+    box-shadow: 0 8px 28px rgba(30, 64, 175, .2);
+  }
+  header::after {
+    content: "";
+    position: absolute;
+    width: 300px; height: 300px;
+    right: 8%; top: -210px;
+    border: 1px solid rgba(255,255,255,.18);
+    border-radius: 50%;
+    box-shadow: 0 0 0 32px rgba(255,255,255,.035), 0 0 0 68px rgba(255,255,255,.025);
+    pointer-events: none;
+  }
+  main {
+    max-width: 1240px;
+    margin: 30px auto;
+    padding: 0 22px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 22px;
+    align-items: start;
+  }
+  @media (max-width: 900px) {
+    main { grid-template-columns: 1fr; margin-top: 20px; padding: 0 16px; gap: 8px; }
+  }
+  .card {
+    position: relative;
+    background: var(--card);
+    border: 1px solid rgba(220, 228, 240, .9);
+    border-radius: 17px;
+    padding: 22px;
+    margin-bottom: 18px;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(10px);
+    transition: box-shadow .2s ease, transform .2s ease;
+  }
+  .card:hover { box-shadow: var(--shadow-hover); }
+  .card h2 {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin: 0 0 18px;
+    color: #1c2b49;
+    font-size: 15px;
+    font-weight: 750;
+    letter-spacing: -.15px;
+  }
+  .card h2::before {
+    content: "";
+    display: inline-block;
+    width: 4px; height: 19px;
+    flex: 0 0 4px;
+    border-radius: 8px;
+    background: linear-gradient(180deg, #5278f5, #23b6a5);
+  }
+  label {
+    display: block;
+    margin: 14px 0 6px;
+    color: #59677e;
+    font-size: 12px;
+    font-weight: 650;
+    letter-spacing: .15px;
+  }
+  input[type=text], input[type=number], input[type=date], select {
+    width: 100%;
+    min-height: 42px;
+    padding: 10px 12px;
+    color: #202d45;
+    border: 1px solid #dce4f0;
+    border-radius: 9px;
+    outline: none;
+    background: #fbfcff;
+    font: inherit;
+    font-size: 13px;
+    transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+  }
+  input:focus, select:focus {
+    border-color: #6c8cf4;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(49, 94, 232, .12);
+  }
+  input[type=file] {
+    display: block;
+    width: 100%;
+    padding: 11px;
+    color: #65738a;
+    border: 1px dashed #b9c7dc;
+    border-radius: 10px;
+    background: #f8faff;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  input[type=file]::file-selector-button {
+    margin-right: 12px;
+    padding: 8px 12px;
+    color: #294fc6;
+    border: 0;
+    border-radius: 7px;
+    background: #e8efff;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  button {
+    cursor: pointer;
+    border: 0;
+    border-radius: 9px;
+    padding: 10px 15px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .1px;
+    transition: transform .16s ease, box-shadow .16s ease, background .16s ease;
+  }
+  button:hover:not(:disabled) { transform: translateY(-1px); }
+  button:active:not(:disabled) { transform: translateY(0); }
+  button:disabled { opacity: .48; cursor: not-allowed; }
+  .primary {
+    color: #fff;
+    background: linear-gradient(135deg, #315ee8, #2448bd);
+    box-shadow: 0 5px 12px rgba(49, 94, 232, .2);
+  }
+  .primary:hover:not(:disabled) { box-shadow: 0 8px 18px rgba(49, 94, 232, .28); }
+  .secondary { color: #34435e; background: #edf1f7; }
+  .secondary:hover:not(:disabled) { background: #e2e9f4; }
+  .danger { color: #b42332; background: #fff0f1; }
+  .danger:hover:not(:disabled) { background: #ffe2e5; }
+  .photos { display: grid; gap: 9px; margin-top: 13px; }
+  .photo {
+    display: grid;
+    grid-template-columns: 82px minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: center;
+    padding: 9px;
+    border: 1px solid #e5eaf2;
+    border-radius: 12px;
+    background: #fcfdff;
+    transition: border-color .18s ease, background .18s ease;
+  }
+  .photo:hover { border-color: #cbd7f2; background: #f8faff; }
+  .photo img {
+    width: 82px; height: 62px;
+    object-fit: cover;
+    border-radius: 8px;
+    background: #edf1f7;
+  }
+  .photo .name {
+    color: #43516a;
+    font-size: 12px;
+    font-weight: 650;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .photo select { margin-top: 6px; min-height: 34px; padding: 6px 9px; }
+  .photo .mv { display: flex; gap: 4px; }
+  .photo .mv button { min-width: 30px; padding: 7px; border-radius: 7px; }
+  .count {
+    margin-top: 12px;
+    padding: 10px 12px;
+    color: #52627c;
+    border-radius: 9px;
+    background: #f1f5fb;
+    font-size: 12px;
+    font-weight: 650;
+  }
+  .count.bad { color: var(--danger); background: #fff0f0; }
+  .actions { display: flex; gap: 9px; flex-wrap: wrap; margin-top: 15px; }
+  .actions button { min-height: 39px; }
+  a.btn { text-decoration: none; display: inline-block; }
+  a.btn button { min-height: 39px; }
+  iframe {
+    display: block;
+    width: 100%;
+    height: 760px;
+    border: 1px solid #dfe6f0;
+    border-radius: 12px;
+    background: #f8fafc;
+  }
+  .hint { margin-top: 8px; color: #8490a4; font-size: 11px; line-height: 1.6; }
+  #msg { min-height: 20px; margin-top: 10px; font-size: 12px; font-weight: 650; }
+  #msg.err { color: #c53030; }
+  #msg.ok { color: #16845b; }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 4px;
+    padding: 4px 9px;
+    color: #2854d6;
+    border: 1px solid #dce6ff;
+    border-radius: 999px;
+    background: #edf3ff;
+    font-size: 10px;
+    font-weight: 750;
+  }
+  .hist { display: grid; gap: 8px; }
+  .hist-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid #e5eaf2;
+    border-radius: 11px;
+    background: #fcfdff;
+    transition: border-color .18s ease, background .18s ease;
+  }
+  .hist-item.active { border-color: #8ba5f7; background: #f2f6ff; }
+  .hist-item .info { color: #293852; font-size: 12px; font-weight: 700; }
+  .hist-item .info small {
+    display: block;
+    margin-top: 4px;
+    color: #8390a4;
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .hist-item button { padding: 7px 10px; font-size: 11px; }
+  .empty {
+    padding: 22px 14px;
+    color: #8490a4;
+    border: 1px dashed #d8e0ec;
+    border-radius: 10px;
+    background: #fafcff;
+    text-align: center;
+    font-size: 12px;
+  }
+  .watermark {
+    position: fixed;
+    right: 16px; bottom: 14px;
+    z-index: 1000;
+    padding: 7px 12px;
+    color: #52617a;
+    border: 1px solid rgba(222, 229, 240, .9);
+    border-radius: 999px;
+    background: rgba(255,255,255,.88);
+    box-shadow: 0 4px 14px rgba(31,52,94,.08);
+    font-size: 10px;
+    font-weight: 700;
+    opacity: .9;
+    pointer-events: none;
+    user-select: none;
+    backdrop-filter: blur(8px);
+  }
+  @media (max-width: 560px) {
+    header { padding: 20px 17px; font-size: 17px; line-height: 1.35; }
+    .card { padding: 17px; border-radius: 14px; }
+    .photo { grid-template-columns: 66px minmax(0, 1fr); }
+    .photo img { width: 66px; height: 54px; }
+    .photo .mv { grid-column: 1 / -1; justify-content: flex-end; }
+    .hist-item { align-items: flex-start; }
+    .hist-item > div:last-child { display: flex; flex-wrap: wrap; justify-content: flex-end; }
+    iframe { height: 560px; }
+    .watermark { right: 9px; bottom: 8px; }
+  }
+
+</style>
+</head>
+<body>
+<header>Pembuat Foto Dokumentasi Pembelajaran Harian (PDF)</header>
+
+<main>
+  <section>
+    <div class="card">
+      <h2>1. Kop Surat</h2>
+      <label>Baris 1</label>
+      <input type="text" id="kop1" value="KEMENTERIAN KETENAGAKERJAAN REPUBLIK INDONESIA">
+      <label>Baris 2</label>
+      <input type="text" id="kop2" value="DIREKTORAT JENDERAL">
+      <label>Baris 3</label>
+      <input type="text" id="kop3" value="PEMBINAAN PELATIHAN VOKASI DAN PRODUKTIVITAS">
+      <label>Baris 4 (tebal)</label>
+      <input type="text" id="kop4" value="BALAI BESAR PELATIHAN VOKASI DAN PRODUKTIVITAS">
+      <label>Logo (PNG/JPG, disimpan di database)</label>
+      <input type="file" id="logo" accept="image/*">
+      <div class="hint" id="logoStatus">Belum ada logo.</div>
+    </div>
+
+    <div class="card">
+      <h2>2. Data Pelatihan <span class="badge" id="modeBadge">Baru</span></h2>
+      <label>Lokasi</label>
+      <input type="text" id="lokasi" value="LPK Sindi Loken">
+      <label>Kejuruan</label>
+      <input type="text" id="kejuruan" value="Tata Kecantikan / KECANTIKAN KULIT">
+      <label>Pelatihan</label>
+      <input type="text" id="pelatihan" value="Commercial Make Up Artist">
+      <div class="row">
+        <div>
+          <label>Hari ke-</label>
+          <input type="number" id="hari" min="1" value="1">
+        </div>
+        <div>
+          <label>Tanggal</label>
+          <input type="date" id="tanggal">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>3. Foto (6 foto: 2 pagi, 2 siang, 2 sore)</h2>
+      <input type="file" id="fotos" accept="image/*" multiple>
+      <div class="hint">Pilih foto sekaligus. Urutan awal: 2 pertama = Pagi, 2 berikutnya = Siang, 2 terakhir = Sore. Sesi bisa diubah, urutan bisa digeser.</div>
+      <div class="photos" id="photoList"></div>
+      <div class="count" id="count"></div>
+      <div id="msg"></div>
+      <div class="actions">
+        <button class="primary" id="btnSave">Simpan</button>
+        <button class="primary" id="btnGenerate">Buat PDF</button>
+        <a class="btn" id="btnDownload" download style="display:none"><button class="secondary" type="button">Unduh PDF</button></a>
+      </div>
+      <div class="actions">
+        <button class="secondary" id="btnNew" type="button">Dokumentasi baru</button>
+        <button class="secondary" id="btnReset" type="button">Kosongkan foto</button>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="card">
+      <h2>Riwayat tersimpan</h2>
+      <div class="hist" id="history"></div>
+    </div>
+    <div class="card">
+      <h2>Pratinjau</h2>
+      <iframe id="preview" title="Pratinjau PDF"></iframe>
+    </div>
+  </section>
+</main>
+
+<div class="watermark">Dibuat oleh Andri Pukreng</div>
+
+<script>
+const SESI = ["Pagi", "Siang", "Sore"];
+const BULAN = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+const FIELDS = ["kop1","kop2","kop3","kop4","lokasi","kejuruan","pelatihan"];
+const $ = id => document.getElementById(id);
+
+let photos = [];       // {id?, name, dataUrl, w, h, sesi}
+let logoData = null;   // {dataUrl, w, h}
+let currentId = null;  // null = dokumentasi baru
+let history = [];
+let currentUrl = null;
+
+// ---------- util ----------
+async function api(url, opts) {
+  const r = await fetch(url, opts);
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || ("Gagal (" + r.status + ")"));
+  return j;
+}
+const jsonOpts = (method, body) => ({ method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+
+function showMsg(text, kind) {
+  const m = $("msg");
+  m.textContent = text || "";
+  m.className = kind || "";
+}
+
+function readFile(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+function loadImage(src) {
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => res(img);
+    img.onerror = rej;
+    img.src = src;
+  });
+}
+// Perkecil agar file tidak terlalu besar; hasil JPEG
+async function compress(file, maxSide = 1400, quality = 0.85) {
+  const img = await loadImage(await readFile(file));
+  const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+  const w = Math.round(img.naturalWidth * scale), h = Math.round(img.naturalHeight * scale);
+  const c = document.createElement("canvas");
+  c.width = w; c.height = h;
+  const ctx = c.getContext("2d");
+  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, w, h);
+  ctx.drawImage(img, 0, 0, w, h);
+  return { dataUrl: c.toDataURL("image/jpeg", quality), w, h };
+}
+async function loadLogo(dataUrl) {
+  const img = await loadImage(dataUrl);
+  logoData = { dataUrl, w: img.naturalWidth, h: img.naturalHeight };
+  $("logoStatus").textContent = "Logo tersimpan.";
+}
+
+function formatTanggal(iso) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return `${d} ${BULAN[m - 1]} ${y}`;
+}
+function nextDay(iso) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10);
+}
+function todayIso() {
+  const t = new Date();
+  const p = n => String(n).padStart(2, "0");
+  return `${t.getFullYear()}-${p(t.getMonth() + 1)}-${p(t.getDate())}`;
+}
+
+// ---------- logo ----------
+$("logo").addEventListener("change", async e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  try {
+    const c = await compress(f, 500, 0.92);
+    await api("/api/logo", jsonOpts("PUT", { dataUrl: c.dataUrl }));
+    await loadLogo(c.dataUrl);
+    showMsg("Logo disimpan.", "ok");
+  } catch (err) { showMsg(err.message, "err"); }
+  e.target.value = "";
+});
+
+// ---------- daftar foto ----------
+$("fotos").addEventListener("change", async e => {
+  const files = [...e.target.files];
+  for (const f of files) {
+    const c = await compress(f);
+    // sesi otomatis: isi Pagi dulu, lalu Siang, lalu Sore (masing-masing 2 foto)
+    const n = [0, 0, 0];
+    photos.forEach(p => n[p.sesi]++);
+    const k = n.findIndex(x => x < 2);
+    photos.push({ name: f.name, ...c, sesi: k === -1 ? 2 : k });
+  }
+  e.target.value = "";
+  renderList();
+});
+
+function renderList() {
+  const box = $("photoList");
+  box.innerHTML = "";
+  photos.forEach((p, i) => {
+    const el = document.createElement("div");
+    el.className = "photo";
+
+    const img = document.createElement("img");
+    img.src = p.dataUrl;
+
+    const mid = document.createElement("div");
+    const nm = document.createElement("div");
+    nm.className = "name";
+    nm.textContent = `${i + 1}. ${p.name}`;
+    const sel = document.createElement("select");
+    SESI.forEach((s, k) => {
+      const o = document.createElement("option");
+      o.value = k; o.textContent = s; o.selected = k === p.sesi;
+      sel.appendChild(o);
+    });
+    sel.addEventListener("change", () => { p.sesi = +sel.value; updateCount(); });
+    mid.append(nm, sel);
+
+    const mv = document.createElement("div");
+    mv.className = "mv";
+    const mk = (txt, title, fn) => {
+      const b = document.createElement("button");
+      b.className = "secondary"; b.textContent = txt; b.title = title; b.onclick = fn;
+      return b;
+    };
+    mv.append(
+      mk("↑", "Geser ke atas", () => { if (i > 0) { [photos[i-1], photos[i]] = [photos[i], photos[i-1]]; renderList(); } }),
+      mk("↓", "Geser ke bawah", () => { if (i < photos.length - 1) { [photos[i+1], photos[i]] = [photos[i], photos[i+1]]; renderList(); } }),
+      mk("✕", "Hapus", () => { photos.splice(i, 1); renderList(); })
+    );
+
+    el.append(img, mid, mv);
+    box.appendChild(el);
+  });
+  updateCount();
+}
+
+function updateCount() {
+  const n = [0, 0, 0];
+  photos.forEach(p => n[p.sesi]++);
+  const el = $("count");
+  el.textContent = `Pagi: ${n[0]}/2 · Siang: ${n[1]}/2 · Sore: ${n[2]}/2`;
+  el.className = "count" + (n.some(x => x > 2) ? " bad" : "");
+}
+
+$("btnReset").onclick = () => { photos = []; renderList(); showMsg(""); };
+
+// ---------- riwayat ----------
+async function refreshHistory() {
+  history = await api("/api/records");
+  const box = $("history");
+  box.innerHTML = "";
+  if (history.length === 0) {
+    const d = document.createElement("div");
+    d.className = "empty";
+    d.textContent = "Belum ada dokumentasi tersimpan.";
+    box.appendChild(d);
+    return;
+  }
+  history.forEach(r => {
+    const item = document.createElement("div");
+    item.className = "hist-item" + (r.id === currentId ? " active" : "");
+    const info = document.createElement("div");
+    info.className = "info";
+    info.textContent = `Hari ke-${r.hari} · ${formatTanggal(r.tanggal)}`;
+    const sm = document.createElement("small");
+    sm.textContent = `${r.jumlah_foto} foto${r.pelatihan ? " · " + r.pelatihan : ""}`;
+    info.appendChild(sm);
+
+    const act = document.createElement("div");
+    const bOpen = document.createElement("button");
+    bOpen.className = "secondary"; bOpen.textContent = "Buka";
+    bOpen.onclick = () => openRecord(r.id);
+    const bDel = document.createElement("button");
+    bDel.className = "danger"; bDel.textContent = "Hapus"; bDel.style.marginLeft = "6px";
+    bDel.onclick = () => deleteRecord(r);
+    act.append(bOpen, bDel);
+
+    item.append(info, act);
+    box.appendChild(item);
+  });
+}
+
+function setMode() {
+  const b = $("modeBadge");
+  b.textContent = currentId == null ? "Baru" : "Tersimpan (ubah)";
+}
+
+function newRecord() {
+  currentId = null;
+  photos = [];
+  if (history.length) {
+    const last = history[history.length - 1];
+    $("hari").value = last.hari + 1;
+    $("tanggal").value = nextDay(last.tanggal);
+  } else {
+    $("hari").value = 1;
+    $("tanggal").value = todayIso();
+  }
+  clearPreview();
+  setMode();
+  renderList();
+  refreshHistory();
+  showMsg("");
+}
+
+async function fetchAsDataUrl(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error("Foto tidak bisa dimuat.");
+  return readFile(await r.blob());
+}
+
+async function openRecord(id) {
+  try {
+    showMsg("Memuat...");
+    const rec = await api("/api/records/" + id);
+    FIELDS.forEach(f => { $(f).value = rec[f] || ""; });
+    $("hari").value = rec.hari;
+    $("tanggal").value = rec.tanggal;
+    photos = [];
+    for (const p of rec.photos) {
+      photos.push({ id: p.id, name: `foto ${photos.length + 1}`, dataUrl: await fetchAsDataUrl(p.url), w: p.w, h: p.h, sesi: p.sesi });
+    }
+    currentId = rec.id;
+    setMode();
+    renderList();
+    await refreshHistory();
+    generate(true);
+    showMsg("");
+  } catch (err) { showMsg(err.message, "err"); }
+}
+
+async function deleteRecord(r) {
+  if (!confirm(`Hapus dokumentasi Hari ke-${r.hari} (${formatTanggal(r.tanggal)}) beserta fotonya?`)) return;
+  try {
+    await api("/api/records/" + r.id, { method: "DELETE" });
+    if (currentId === r.id) { await refreshHistory(); newRecord(); }
+    else await refreshHistory();
+  } catch (err) { showMsg(err.message, "err"); }
+}
+
+function collectBody() {
+  const body = { hari: $("hari").value, tanggal: $("tanggal").value };
+  FIELDS.forEach(f => body[f] = $(f).value);
+  body.photos = photos.map(p => p.id
+    ? { id: p.id, sesi: p.sesi }
+    : { dataUrl: p.dataUrl, w: p.w, h: p.h, sesi: p.sesi });
+  return body;
+}
+
+function validate() {
+  if (!$("tanggal").value) return "Tanggal belum diisi.";
+  if (!($("hari").value > 0)) return "Hari ke- belum diisi.";
+  const n = [0, 0, 0]; photos.forEach(p => n[p.sesi]++);
+  if (n.some(x => x > 2)) return "Tiap sesi maksimal 2 foto. Ubah sesi foto yang berlebih.";
+  return null;
+}
+
+$("btnSave").onclick = async () => {
+  const bad = validate();
+  if (bad) return showMsg(bad, "err");
+  const dup = history.find(r => r.hari === +$("hari").value && r.id !== currentId);
+  if (dup && !confirm(`Hari ke-${dup.hari} sudah ada di riwayat. Tetap simpan sebagai data baru?`)) return;
+  const btn = $("btnSave");
+  btn.disabled = true;
+  try {
+    showMsg("Menyimpan...");
+    const body = collectBody();
+    const res = currentId == null
+      ? await api("/api/records", jsonOpts("POST", body))
+      : await api("/api/records/" + currentId, jsonOpts("PUT", body));
+    await openRecord(res.id);
+    showMsg("Tersimpan di database.", "ok");
+  } catch (err) { showMsg(err.message, "err"); }
+  btn.disabled = false;
+};
+
+$("btnNew").onclick = () => newRecord();
+
+// ---------- PDF ----------
+function addImageFit(doc, p, x, y, w, h) {
+  const r = Math.min(w / p.w, h / p.h);
+  const iw = p.w * r, ih = p.h * r;
+  doc.addImage(p.dataUrl, "JPEG", x + (w - iw) / 2, y + (h - ih) / 2, iw, ih);
+}
+
+function buildPdf() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+  const L = 15, R = 195, W = R - L;
+
+  // Kop surat
+  if (logoData) {
+    const box = 20, r = Math.min(box / logoData.w, box / logoData.h);
+    const fmt = logoData.dataUrl.startsWith("data:image/png") ? "PNG" : "JPEG";
+    doc.addImage(logoData.dataUrl, fmt, L + 1, 12 + (box - logoData.h * r) / 2, logoData.w * r, logoData.h * r);
+  }
+  doc.setTextColor(0);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(10);
+  doc.text($("kop1").value, 40, 16);
+  doc.text($("kop2").value, 40, 21);
+  doc.text($("kop3").value, 40, 26);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(11);
+  doc.text($("kop4").value, 40, 31.5);
+  doc.setLineWidth(0.8); doc.line(L, 36, R, 36);
+
+  // Info
+  doc.setFont("helvetica", "normal"); doc.setFontSize(10);
+  const info = [["Lokasi", $("lokasi").value], ["Kejuruan", $("kejuruan").value], ["Pelatihan", $("pelatihan").value]];
+  info.forEach(([k, v], i) => {
+    const y = 45 + i * 6;
+    doc.text(k, L + 7, y);
+    doc.text(":", 50, y);
+    doc.text(v, 54, y);
+  });
+
+  // Bar hitam
+  doc.setFillColor(0); doc.rect(L - 5, 63, W + 10, 6, "F");
+  doc.setTextColor(255); doc.setFontSize(10);
+  doc.text("FOTO DOKUMENTASI PEMBELAJARAN HARIAN", 105, 67.3, { align: "center" });
+  doc.setTextColor(0);
+
+  // Tabel
+  const c1 = 18, c2 = 81;
+  const x1 = L, x2 = L + c1, x3 = L + c1 + c2;
+  let y = 76;
+  doc.setLineWidth(0.3);
+
+  const hh = 12;
+  doc.rect(x1, y, c1, hh); doc.rect(x2, y, c2, hh); doc.rect(x3, y, c2, hh);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(11);
+  doc.text("HARI", x1 + c1 / 2, y + 5, { align: "center" });
+  doc.text("KE-", x1 + c1 / 2, y + 10, { align: "center" });
+  doc.setFontSize(12);
+  doc.text("DOKUMEN", x2 + c2 / 2, y + 7.5, { align: "center" });
+  doc.text("DOKUMEN", x3 + c2 / 2, y + 7.5, { align: "center" });
+  y += hh;
+
+  const photoH = 52, labelH = 6;
+  SESI.forEach((nama, si) => {
+    const list = photos.filter(p => p.sesi === si).slice(0, 2);
+    doc.rect(x1, y, c1, photoH); doc.rect(x2, y, c2, photoH); doc.rect(x3, y, c2, photoH);
+    if (si === 0) {
+      doc.setFont("helvetica", "normal"); doc.setFontSize(12);
+      doc.text(String($("hari").value), x1 + c1 / 2, y + 6, { align: "center" });
+    }
+    if (list[0]) addImageFit(doc, list[0], x2 + 1.5, y + 1.5, c2 - 3, photoH - 3);
+    if (list[1]) addImageFit(doc, list[1], x3 + 1.5, y + 1.5, c2 - 3, photoH - 3);
+    y += photoH;
+    doc.rect(x1, y, W, labelH);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(11);
+    doc.text(nama.toUpperCase(), L + W / 2, y + 4.4, { align: "center" });
+    y += labelH;
+  });
+
+  doc.rect(x1, y, W, 7);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(12);
+  doc.text("TANGGAL: " + formatTanggal($("tanggal").value), L + W / 2, y + 5, { align: "center" });
+
+  return doc;
+}
+
+function clearPreview() {
+  if (currentUrl) URL.revokeObjectURL(currentUrl);
+  currentUrl = null;
+  $("preview").removeAttribute("src");
+  $("btnDownload").style.display = "none";
+}
+
+function generate(quiet) {
+  if (!window.jspdf) return showMsg("Library jsPDF belum termuat. Pastikan komputer terhubung ke internet lalu muat ulang halaman.", "err");
+  const bad = validate();
+  if (bad) return showMsg(bad, "err");
+  if (photos.length === 0) return showMsg("Belum ada foto.", "err");
+
+  const blob = buildPdf().output("blob");
+  if (currentUrl) URL.revokeObjectURL(currentUrl);
+  currentUrl = URL.createObjectURL(blob);
+  $("preview").src = currentUrl;
+  const a = $("btnDownload");
+  a.href = currentUrl;
+  a.download = `Dokumentasi_Hari_${$("hari").value}_${formatTanggal($("tanggal").value).replace(/ /g, "-")}.pdf`;
+  a.style.display = "inline-block";
+  if (!quiet) showMsg("");
+}
+$("btnGenerate").onclick = () => generate(false);
+
+// ---------- mulai ----------
+(async function init() {
+  try {
+    const s = await api("/api/settings");
+    FIELDS.forEach(f => { if (s[f]) $(f).value = s[f]; });
+    if (s.logo) await loadLogo(s.logo);
+    await refreshHistory();
+    newRecord();
+  } catch (err) {
+    showMsg("Tidak bisa terhubung ke server: " + err.message, "err");
+  }
+})();
+</script>
+</body>
+</html>

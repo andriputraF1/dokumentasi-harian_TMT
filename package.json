@@ -1,0 +1,16 @@
+{
+  "name": "dokumentasi-harian",
+  "version": "1.0.0",
+  "description": "Pembuat PDF foto dokumentasi pembelajaran harian dengan database SQLite",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "start:jaringan": "node server.js --jaringan"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}
